@@ -6,5 +6,9 @@
  * are not using. For our purposes, set SYSTEM_MODE(SEMI_AUTOMATIC) or
  * SYSTEM_MODE(MANUAL). See https://docs.particle.io/reference/firmware/photon/#system-modes
  */
-SYSTEM_MODE(MANUAL); 
+//SYSTEM_MODE(MANUAL); 
 
+// using bluetooth
+#if defined(ARDUINO) 
+SYSTEM_MODE(SEMI_AUTOMATIC); 
+#endif

@@ -10,3 +10,7 @@ const int pin_piezo = D0;
 
 
 const int pin_servo = D12;
+
+
+const int pin_ultrasonic_trigger = D3;
+const int pin_ultrasonic_echo = D4;

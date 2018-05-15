@@ -43,14 +43,14 @@ void MulticolorThreePinLed::SetColor(byte red, byte green, byte blue)
 void MulticolorThreePinLed::On()
 {
   m_on = true;
-  Serial.println("on");
+  //Serial.println("on");
   WriteCathodeLed(m_output_red, m_output_green, m_output_blue);
 }
 
 void MulticolorThreePinLed::Off()
 {
   m_on = false;
-  Serial.println("off");
+  //Serial.println("off");
   WriteCathodeLed(0, 0, 0);
 }
 

@@ -9,6 +9,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.graphics.PointF;
 import android.os.Bundle;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
@@ -452,16 +453,29 @@ public class MainActivity extends AppCompatActivity implements BLEListener{
             // You can also turn on Landmark detection to get more information about the face like cheek, ear, mouth, etc.
             //   See: https://developers.google.com/android/reference/com/google/android/gms/vision/face/Landmark
             boolean isPortrait = (getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE);
-            String debugFaceInfo = String.format("Portrait: %b Front-Facing Camera: %b FaceId: %d Loc (x,y): (%.1f, %.1f) Size (w, h): (%.1f, %.1f) Left Eye: %.1f Right Eye: %.1f  Smile: %.1f",
+
+            PointF top_left = face.getPosition();
+            float track_x = top_left.x;
+
+            String debugFaceInfo = String.format("Portrait: %b Front-Facing Camera: %b FaceId: %d Loc (x,y): (%.1f, %.1f) Size (w, h): (%.1f, %.1f) Left Eye: %.1f Right Eye: %.1f  Smile: %.1f  Track X: %.2f",
                     isPortrait,
                     mIsFrontFacing,
                     face.getId(),
                     face.getPosition().x, face.getPosition().y,
                     face.getHeight(), face.getWidth(),
                     face.getIsLeftEyeOpenProbability(), face.getIsRightEyeOpenProbability(),
-                    face.getIsSmilingProbability());
+                    face.getIsSmilingProbability(),
+                    track_x);
 
             Log.i(TAG, debugFaceInfo);
+
+
+            float constant_track_center = 120f;
+            float constant_track_degrees = 1.5f;
+
+
+
+
 
             // Come up with your own communication protocol to Arduino. Make sure that you change the
             // RECEIVE_MAX_LEN in your Arduino code to match the # of bytes you are sending.
@@ -564,6 +578,12 @@ public class MainActivity extends AppCompatActivity implements BLEListener{
         // Write code here that receives the ultrasonic measurements from Arduino
         // and outputs them in your app. (You could also consider receiving the angle
         // of the servo motor but this would be more for debugging and is not necessary)
+
+
+        String debugReceivedData = String.format("Data Received: %d %d %d", data[0], data[1], data[2]);
+
+        Log.i(TAG, debugReceivedData);
+
     }
 
     @Override
