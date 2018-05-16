@@ -75,13 +75,14 @@ class FaceGraphic extends GraphicOverlay.Graphic {
         mFaceId = id;
     }
 
-
+    double m_degree = 0.0;
     /**
      * Updates the face instance from the detection of the most recent frame.  Invalidates the
      * relevant portions of the overlay to trigger a redraw.
      */
-    void updateFace(Face face) {
+    void updateFace(Face face, double degree) {
         mFace = face;
+        m_degree = degree;
         postInvalidate();
     }
 
@@ -96,8 +97,12 @@ class FaceGraphic extends GraphicOverlay.Graphic {
         }
 
         // Draws a circle at the position of the detected face, with the face's track id below.
-        float x = translateX(face.getPosition().x + face.getWidth() / 2);
-        float y = translateY(face.getPosition().y + face.getHeight() / 2);
+
+        float face_center_x = face.getPosition().x + face.getWidth() / 2;
+        float face_center_y = face.getPosition().y + face.getHeight() / 2;
+
+        float x = translateX(face_center_x);
+        float y = translateY(face_center_y);
         canvas.drawCircle(x, y, FACE_POSITION_RADIUS, mFacePositionPaint);
         canvas.drawText("id: " + mFaceId, x + ID_X_OFFSET, y + ID_Y_OFFSET, mIdPaint);
         canvas.drawText("happiness: " + String.format("%.2f", face.getIsSmilingProbability()), x, y + ID_Y_OFFSET * 4, mIdPaint);
@@ -105,8 +110,11 @@ class FaceGraphic extends GraphicOverlay.Graphic {
         canvas.drawText("left eye: " + String.format("%.2f", face.getIsLeftEyeOpenProbability()), x + ID_X_OFFSET * 4, y - ID_Y_OFFSET * 2, mIdPaint);
 
 
+
+
         // Show X and Y upper left face box
-        canvas.drawText("(x,y): " + String.format("(%.1f, %.1f)", x, y), x, y, mIdPaint);
+        canvas.drawText("(x,y): " + String.format("(%.1f, %.1f)", face_center_x, face_center_y), x, y, mIdPaint);
+        canvas.drawText("Degree: " + String.format("%.1f", m_degree), 100, 200, mIdPaint);
 
         // Draws a bounding box around the face.
         float xOffset = scaleX(face.getWidth() / 2.0f);

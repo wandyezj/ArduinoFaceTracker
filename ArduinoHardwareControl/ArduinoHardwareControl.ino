@@ -1,5 +1,3 @@
-
-
 #include "RedBearDuoRequiredManual.h"
 
 #include "ble_config.h"
@@ -11,10 +9,13 @@
 #include "pins.h"
 
 
-
+//
+// Hardware declarations
+//
 
 MulticolorThreePinLed output_led(pin_led_red, pin_led_green, pin_led_blue);
-//Servo servo;
+Servo servo;
+
 
 //
 // Board LED
@@ -25,6 +26,8 @@ void SetRGB(byte r, byte g, byte b)
   RGB.color(r, g, b);
 }
 */
+
+
 
 void setup() {
   Serial.begin(9600);
@@ -42,10 +45,31 @@ void setup() {
   pinMode(pin_led_green, OUTPUT);
   pinMode(pin_led_blue, OUTPUT);
 */
-  //servo.attach(pin_servo);
+  servo.attach(pin_servo);
 
   SetupBle();
 }
+
+const byte motor_degree_min = 65;
+const byte motor_degree_max = 115;
+
+
+// 0 to 180
+void HardwareControlMoveMotorToPosition(byte degree)
+{
+  if (degree < motor_degree_min)
+  {
+    degree = motor_degree_min;
+  }
+  else if (degree > motor_degree_max)
+  {
+    degree = motor_degree_max;
+  }
+  
+  servo.write(degree);
+}
+
+
 
 void loop() {
   // put your main code here, to run repeatedly:
@@ -131,6 +155,10 @@ void loop() {
   //delay(500);
 }
 
+
+
+
+
 // Bel handle
 
 
@@ -194,6 +222,12 @@ int bleReceiveDataCallback(uint16_t value_handle, uint8_t *buffer, uint16_t size
       // Write code here that processes the FaceTrackerBLE data from Android
       // and properly angles the servo + ultrasonic sensor towards the face
       // Example servo code here: https://github.com/jonfroehlich/CSE590Sp2018/tree/master/L06-Arduino/RedBearDuoServoSweep   
+
+
+      byte motor_position = receive_data[1];
+      HardwareControlMoveMotorToPosition(motor_position);
+
+      
     }
   }
   return 0;

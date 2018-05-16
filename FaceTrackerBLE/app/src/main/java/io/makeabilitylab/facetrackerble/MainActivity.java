@@ -433,7 +433,7 @@ public class MainActivity extends AppCompatActivity implements BLEListener{
         @Override
         public void onUpdate(FaceDetector.Detections<Face> detectionResults, Face face) {
             mOverlay.add(mFaceGraphic);
-            mFaceGraphic.updateFace(face);
+
 
 
             // CSE590 Student TODO:
@@ -455,9 +455,65 @@ public class MainActivity extends AppCompatActivity implements BLEListener{
             boolean isPortrait = (getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE);
 
             PointF top_left = face.getPosition();
-            float track_x = top_left.x;
+            double track_x = top_left.x + face.getWidth() / 2; ;
 
-            String debugFaceInfo = String.format("Portrait: %b Front-Facing Camera: %b FaceId: %d Loc (x,y): (%.1f, %.1f) Size (w, h): (%.1f, %.1f) Left Eye: %.1f Right Eye: %.1f  Smile: %.1f  Track X: %.2f",
+            double constant_max_x = 420;
+            double constant_min_x = 120;
+
+            double constant_max_theta = 115;
+            double constant_min_theta = 65;
+
+            double constant_track_center = 120;
+            double constant_track_degrees = 1.5;
+
+            // center
+            double degree = 90;
+
+            // note degrees are inverted for whatever reason
+            if (track_x > constant_max_x)
+            {
+                degree = constant_min_theta;
+            }
+            else if (track_x < constant_min_x)
+            {
+                degree = constant_max_theta;
+            }
+            else
+            {
+                // calculate ratio
+
+                double degree_range = constant_max_theta - constant_min_theta;
+                double x_range = constant_max_x - constant_min_x;
+
+                double degree_per_x = (degree_range / x_range);
+
+                // mapping to the correct range
+                degree = Math.floor((track_x - constant_min_x) * degree_per_x);
+
+                // invert
+                degree = degree_range - degree;
+
+                // ensure minimum
+                degree = constant_min_theta + degree;
+
+            }
+            //double degree = Math.floor((track_x *0.6 * -1.0) + 180);
+
+            mFaceGraphic.updateFace(face, degree);
+
+            byte command_degree = (byte)(int)degree;
+
+            //
+            if (command_degree > constant_max_theta)
+            {
+                command_degree = (byte)constant_max_theta;
+            }
+            else if (command_degree < constant_min_theta)
+            {
+                command_degree = (byte)constant_min_theta;
+            }
+
+            String debugFaceInfo = String.format("Portrait: %b Front-Facing Camera: %b FaceId: %d Loc (x,y): (%.1f, %.1f) Size (w, h): (%.1f, %.1f) Left Eye: %.1f Right Eye: %.1f  Smile: %.1f  Track X: %.2f Degree: %.1f [%d]",
                     isPortrait,
                     mIsFrontFacing,
                     face.getId(),
@@ -465,13 +521,12 @@ public class MainActivity extends AppCompatActivity implements BLEListener{
                     face.getHeight(), face.getWidth(),
                     face.getIsLeftEyeOpenProbability(), face.getIsRightEyeOpenProbability(),
                     face.getIsSmilingProbability(),
-                    track_x);
+                    track_x,
+                    degree,
+                    command_degree);
 
-            Log.i(TAG, debugFaceInfo);
+            Log.i(TAG + "_face_tracker", debugFaceInfo);
 
-
-            float constant_track_center = 120f;
-            float constant_track_degrees = 1.5f;
 
 
 
@@ -481,12 +536,14 @@ public class MainActivity extends AppCompatActivity implements BLEListener{
             // RECEIVE_MAX_LEN in your Arduino code to match the # of bytes you are sending.
             // For example, one protocol might be:
             // 0 : Control byte
-            // 1 : left eye open probability (0-255 where 0 is eye closed and 1 is eye open)
+            // 1 : Motor position 0 to 180
             // 2 : right eye open probability (0-255 where 0 is eye closed and 1 is eye open)
             // 3 : happiness probability (0-255 where 0 sad, 128 is neutral, and 255 is happy)
             // 4 : x-location of face (0-255 where 0 is left side of camera and 255 is right side of camera)
             byte[] buf = new byte[] { (byte) 0x01, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00}; // 5-byte initialization
 
+
+            buf[1] = command_degree;
             // CSE590 Student TODO:
             // Write code that puts in your data into the buffer
 
@@ -582,7 +639,7 @@ public class MainActivity extends AppCompatActivity implements BLEListener{
 
         String debugReceivedData = String.format("Data Received: %d %d %d", data[0], data[1], data[2]);
 
-        Log.i(TAG, debugReceivedData);
+        Log.i(TAG + "_ble_received", debugReceivedData);
 
     }
 
