@@ -6,7 +6,8 @@
 #include "MulticolorThreePinLed.h"
 #include "UltrasonicRangeFinder.h"
 
-//#include "pitches.h"
+#include "pitches.h"
+
 #include "pins.h"
 
 
@@ -39,7 +40,8 @@ void setup() {
   // put your setup code here, to run once:
   output_led.Setup();
   ultrasonic.Setup();
-  //pinMode(pin_piezo, OUTPUT);
+  
+  pinMode(pin_piezo, OUTPUT);
 
 /*
   pinMode(pin_led_red, OUTPUT);
@@ -83,9 +85,34 @@ void HardwareControlMoveMotorToPosition(byte degree)
 }
 
 
+void HardwareControlAlarm()
+{
+    //tone(pin_piezo, NOTE_A6, 1000);
+    output_led.On();
+    output_led.SetColor(color::BLUE);
+    delay(1000);
+    output_led.Off();
+}
 
-void loop() {
+
+int current_range_centimeters = 400;
+
+void loop()
+{
+  /*
   // put your main code here, to run repeatedly:
+  float range_centimeters = ultrasonic.RangeCentimeters();
+  
+  // Print out results
+  if ( range_centimeters > 400 ) {
+    //Serial.println("Out of range");
+  } else {
+    Serial.print(range_centimeters);
+    Serial.println(" cm");
+  }
+*/
+  //current_range_centimeters = range_centimeters;
+  
   //Serial.println("loop");
 /*
     analogWrite(pin_led_red, 255);
@@ -168,16 +195,7 @@ void loop() {
   //delay(500);
 
 
-  float range_centimeters = ultrasonic.RangeCentimeters();
-  
-  // Print out results
-  if ( range_centimeters > 400 ) {
-    Serial.println("Out of range");
-  } else {
-    Serial.print(range_centimeters);
-    Serial.println(" cm");
 
-  }
 }
 
 
@@ -218,6 +236,7 @@ void bleDisconnectedCallback(uint16_t handle) {
 }
 
 
+
 /**
  * @brief Callback for receiving data from Android (or whatever device you're connected to).
  *
@@ -233,7 +252,7 @@ int bleReceiveDataCallback(uint16_t value_handle, uint8_t *buffer, uint16_t size
   {
     memcpy(receive_data, buffer, RECEIVE_MAX_LEN);
 
-    /*
+    ///*
     Serial.print("Received data: ");
     for (uint8_t index = 0; index < RECEIVE_MAX_LEN; index++)
     {
@@ -255,6 +274,11 @@ int bleReceiveDataCallback(uint16_t value_handle, uint8_t *buffer, uint16_t size
       byte motor_position = receive_data[1];
       HardwareControlMoveMotorToPosition(motor_position);
 
+      if (receive_data[2] > 0 && current_range_centimeters < 50)
+      {
+        HardwareControlAlarm();
+      }
+      
       
     }
   }
@@ -277,14 +301,22 @@ static void bleSendDataTimerCallback(btstack_timer_source_t *ts) {
 
   //Serial.println("BLE SendDataTimeCallback");
 
+  float range_centimeters = ultrasonic.RangeCentimeters();
+  int range_cm = (int) range_centimeters;
+
+  current_range_centimeters = range_cm;
+
+  Serial.print(range_cm);
+  Serial.println(" cm");
+
   if (ble.attServerCanSendPacket())
   {
     send_data[0] = (0x0A);
-    send_data[1] = (0x0A);
-    send_data[2] = (0x0A);
+    send_data[1] = highByte(range_cm);
+    send_data[2] = lowByte(range_cm);
     ble.sendNotify(send_handle, send_data, SEND_MAX_LEN);
   }
-      
+
   // Restart timer.
   ble.setTimer(ts, _sendDataFrequency);
   ble.addTimer(ts);

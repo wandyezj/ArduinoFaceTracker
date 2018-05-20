@@ -460,7 +460,7 @@ public class MainActivity extends AppCompatActivity implements BLEListener{
             double constant_max_x = 420;
             double constant_min_x = 120;
 
-            double constant_max_theta = 115;
+            double constant_max_theta = 105;
             double constant_min_theta = 65;
 
             double constant_track_center = 120;
@@ -499,7 +499,7 @@ public class MainActivity extends AppCompatActivity implements BLEListener{
             }
             //double degree = Math.floor((track_x *0.6 * -1.0) + 180);
 
-            mFaceGraphic.updateFace(face, degree);
+            mFaceGraphic.updateFace(face, degree, m_current_range_cm);
 
             byte command_degree = (byte)(int)degree;
 
@@ -530,22 +530,28 @@ public class MainActivity extends AppCompatActivity implements BLEListener{
 
 
 
-
+            byte command_alarm = 0;
+            if (m_current_range_cm < 50)
+            {
+                command_alarm = 1;
+            }
 
             // Come up with your own communication protocol to Arduino. Make sure that you change the
             // RECEIVE_MAX_LEN in your Arduino code to match the # of bytes you are sending.
             // For example, one protocol might be:
             // 0 : Control byte
             // 1 : Motor position 0 to 180
-            // 2 : right eye open probability (0-255 where 0 is eye closed and 1 is eye open)
+            // 2 : 0 or 1 Control if should sound alarm
             // 3 : happiness probability (0-255 where 0 sad, 128 is neutral, and 255 is happy)
             // 4 : x-location of face (0-255 where 0 is left side of camera and 255 is right side of camera)
             byte[] buf = new byte[] { (byte) 0x01, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00}; // 5-byte initialization
 
+            Log.i(TAG + "_face_tracker", String.format("Degree: [%d] Alarm: [%d]", command_degree, command_alarm));
 
-            buf[1] = command_degree;
             // CSE590 Student TODO:
             // Write code that puts in your data into the buffer
+            buf[1] = command_degree;
+            buf[2] = command_alarm;
 
             // Send the data!
             mBLEDevice.sendData(buf);
@@ -629,6 +635,8 @@ public class MainActivity extends AppCompatActivity implements BLEListener{
         attemptBleConnection();
     }
 
+    private int m_current_range_cm = 400;
+
     @Override
     public void onBleDataReceived(byte[] data) {
         // CSE590 Student TODO
@@ -636,11 +644,13 @@ public class MainActivity extends AppCompatActivity implements BLEListener{
         // and outputs them in your app. (You could also consider receiving the angle
         // of the servo motor but this would be more for debugging and is not necessary)
 
-
         String debugReceivedData = String.format("Data Received: %d %d %d", data[0], data[1], data[2]);
 
-        Log.i(TAG + "_ble_received", debugReceivedData);
+        int range_cm = ((data[1] & 0xff) << 8) | (data[2] & 0xff);
+        m_current_range_cm = range_cm;
 
+        Log.i(TAG + "_ble_received", debugReceivedData);
+        Log.i(TAG + "_ble_received", String.format("Range cm: %d", range_cm));
     }
 
     @Override

@@ -76,13 +76,15 @@ class FaceGraphic extends GraphicOverlay.Graphic {
     }
 
     double m_degree = 0.0;
+    int m_range_cm = 0;
     /**
      * Updates the face instance from the detection of the most recent frame.  Invalidates the
      * relevant portions of the overlay to trigger a redraw.
      */
-    void updateFace(Face face, double degree) {
+    void updateFace(Face face, double degree, int range_cm) {
         mFace = face;
         m_degree = degree;
+        m_range_cm = range_cm;
         postInvalidate();
     }
 
@@ -91,6 +93,10 @@ class FaceGraphic extends GraphicOverlay.Graphic {
      */
     @Override
     public void draw(Canvas canvas) {
+
+        canvas.drawText("Degree: " + String.format("%.1f", m_degree), 200, 200, mIdPaint);
+        canvas.drawText("Range cm: " + String.format("%d", m_range_cm), 200, 150, mIdPaint);
+
         Face face = mFace;
         if (face == null) {
             return;
@@ -110,11 +116,11 @@ class FaceGraphic extends GraphicOverlay.Graphic {
         canvas.drawText("left eye: " + String.format("%.2f", face.getIsLeftEyeOpenProbability()), x + ID_X_OFFSET * 4, y - ID_Y_OFFSET * 2, mIdPaint);
 
 
-
-
         // Show X and Y upper left face box
         canvas.drawText("(x,y): " + String.format("(%.1f, %.1f)", face_center_x, face_center_y), x, y, mIdPaint);
-        canvas.drawText("Degree: " + String.format("%.1f", m_degree), 100, 200, mIdPaint);
+
+
+
 
         // Draws a bounding box around the face.
         float xOffset = scaleX(face.getWidth() / 2.0f);
