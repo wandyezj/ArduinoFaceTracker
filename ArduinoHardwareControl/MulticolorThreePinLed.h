@@ -6,7 +6,7 @@ class MulticolorThreePinLed
 {
 public:
   MulticolorThreePinLed(int pin_out_red, int pin_out_green, int pin_out_blue);
-  void Initialize();
+  void Setup();
 
   void SetColor(byte red, byte green, byte blue);
 

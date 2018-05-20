@@ -12,7 +12,7 @@ MulticolorThreePinLed::MulticolorThreePinLed(int pin_red, int pin_green, int pin
 {
 }
 
-void MulticolorThreePinLed::Initialize()
+void MulticolorThreePinLed::Setup()
 {
   pinMode(m_pin_red, OUTPUT);
   pinMode(m_pin_green, OUTPUT);

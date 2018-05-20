@@ -4,6 +4,7 @@
 #include "ble_constants.h"
 
 #include "MulticolorThreePinLed.h"
+#include "UltrasonicRangeFinder.h"
 
 //#include "pitches.h"
 #include "pins.h"
@@ -15,7 +16,7 @@
 
 MulticolorThreePinLed output_led(pin_led_red, pin_led_green, pin_led_blue);
 Servo servo;
-
+UltrasonicRangeFinder ultrasonic(pin_ultrasonic_trigger, pin_ultrasonic_echo);
 
 //
 // Board LED
@@ -36,8 +37,8 @@ void setup() {
   
   //RGB.control(true);
   // put your setup code here, to run once:
-  output_led.Initialize();
-  
+  output_led.Setup();
+  ultrasonic.Setup();
   //pinMode(pin_piezo, OUTPUT);
 
 /*
@@ -55,8 +56,17 @@ const byte motor_degree_max = 115;
 
 
 // 0 to 180
+
+byte degree_previous = 90;
 void HardwareControlMoveMotorToPosition(byte degree)
 {
+  if (degree == degree_previous)
+  {
+    return;
+  }
+
+  degree_previous = degree;
+  
   if (degree < motor_degree_min)
   {
     degree = motor_degree_min;
@@ -65,6 +75,9 @@ void HardwareControlMoveMotorToPosition(byte degree)
   {
     degree = motor_degree_max;
   }
+  
+  Serial.print("Motor: ");
+  Serial.println(degree);
   
   servo.write(degree);
 }
@@ -153,6 +166,18 @@ void loop() {
   //delay(500);
   //output_led.Off();
   //delay(500);
+
+
+  float range_centimeters = ultrasonic.RangeCentimeters();
+  
+  // Print out results
+  if ( range_centimeters > 400 ) {
+    Serial.println("Out of range");
+  } else {
+    Serial.print(range_centimeters);
+    Serial.println(" cm");
+
+  }
 }
 
 
@@ -207,6 +232,8 @@ int bleReceiveDataCallback(uint16_t value_handle, uint8_t *buffer, uint16_t size
   if (receive_handle == value_handle)
   {
     memcpy(receive_data, buffer, RECEIVE_MAX_LEN);
+
+    /*
     Serial.print("Received data: ");
     for (uint8_t index = 0; index < RECEIVE_MAX_LEN; index++)
     {
@@ -214,6 +241,7 @@ int bleReceiveDataCallback(uint16_t value_handle, uint8_t *buffer, uint16_t size
       Serial.print(" ");
     }
     Serial.println(" ");
+    //*/
     
     // process the data. 
     if (receive_data[0] == 0x01)
@@ -247,7 +275,7 @@ static void bleSendDataTimerCallback(btstack_timer_source_t *ts) {
   // Example ultrasonic code here: https://github.com/jonfroehlich/CSE590Sp2018/tree/master/L06-Arduino/RedBearDuoUltrasonicRangeFinder
   // Also need to check if distance measurement < threshold and sound alarm
 
-  Serial.println("BLE SendDataTimeCallback");
+  //Serial.println("BLE SendDataTimeCallback");
 
   if (ble.attServerCanSendPacket())
   {
