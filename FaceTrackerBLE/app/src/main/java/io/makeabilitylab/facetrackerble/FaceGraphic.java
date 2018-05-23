@@ -18,6 +18,7 @@ package io.makeabilitylab.facetrackerble;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.util.Log;
 
 import com.google.android.gms.vision.face.Face;
 import io.makeabilitylab.facetrackerble.camera.GraphicOverlay;
@@ -77,14 +78,18 @@ class FaceGraphic extends GraphicOverlay.Graphic {
 
     double m_degree = 0.0;
     int m_range_cm = 0;
+    boolean m_alarm_on = true;
+
     /**
      * Updates the face instance from the detection of the most recent frame.  Invalidates the
      * relevant portions of the overlay to trigger a redraw.
      */
-    void updateFace(Face face, double degree, int range_cm) {
+    void updateFace(Face face, double degree, int range_cm, boolean alarm_on) {
+        Log.i("TAG", "update face");
         mFace = face;
         m_degree = degree;
         m_range_cm = range_cm;
+        m_alarm_on = alarm_on;
         postInvalidate();
     }
 
@@ -94,8 +99,11 @@ class FaceGraphic extends GraphicOverlay.Graphic {
     @Override
     public void draw(Canvas canvas) {
 
+        Log.i("TAG", "draw");
+
         canvas.drawText("Degree: " + String.format("%.1f", m_degree), 200, 200, mIdPaint);
         canvas.drawText("Range cm: " + String.format("%d", m_range_cm), 200, 150, mIdPaint);
+        canvas.drawText("Alarm: " + (m_alarm_on ? "on" : "OFF"), 200, 100, mIdPaint);
 
         Face face = mFace;
         if (face == null) {

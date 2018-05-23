@@ -11,12 +11,15 @@ import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.PointF;
 import android.os.Bundle;
+import android.speech.RecognizerIntent;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.GestureDetector;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
@@ -32,12 +35,27 @@ import com.google.android.gms.vision.face.FaceDetector;
 import com.google.android.gms.vision.face.LargestFaceFocusingProcessor;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.makeabilitylab.facetrackerble.ble.BLEDevice;
 import io.makeabilitylab.facetrackerble.ble.BLEListener;
 import io.makeabilitylab.facetrackerble.ble.BLEUtil;
 import io.makeabilitylab.facetrackerble.camera.CameraSourcePreview;
 import io.makeabilitylab.facetrackerble.camera.GraphicOverlay;
+
+/*
+
+Voice Recognition Approach
+https://stackoverflow.com/questions/11798337/how-to-voice-commands-into-an-android-application?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
+
+https://developer.android.com/training/wearables/apps/voice
+
+
+
+
+ */
+//
 
 /**
  * Demonstrates how to use the Google Android Vision API--specifically the FaceDetector--along
@@ -54,9 +72,11 @@ import io.makeabilitylab.facetrackerble.camera.GraphicOverlay;
  * Jon TODO:
  *  1. (Low priority) We shouldn't disconnect from BLE just because our orientation changed (e.g., from Portrait to Landscape). How to deal?
  */
-public class MainActivity extends AppCompatActivity implements BLEListener{
+public class MainActivity extends AppCompatActivity implements BLEListener
+        , GestureDetector.OnGestureListener, GestureDetector.OnDoubleTapListener
+        {
 
-    private static final String TAG = "FaceTrackerBLE";
+    private static final String TAG = "tag";
     private static final int RC_HANDLE_GMS = 9001;
     private static final int CAMERA_PREVIEW_WIDTH = 640;
     private static final int CAMERA_PREVIEW_HEIGHT = 480;
@@ -82,6 +102,8 @@ public class MainActivity extends AppCompatActivity implements BLEListener{
     //==============================================================================================
     // Activity Methods
     //==============================================================================================
+
+    private GestureDetector gesture_detector;
 
     /**
      * Initializes the UI and initiates the creation of a face detector.
@@ -131,6 +153,10 @@ public class MainActivity extends AppCompatActivity implements BLEListener{
         mBLEDevice = new BLEDevice(this, TARGET_BLE_DEVICE_NAME);
         mBLEDevice.addListener(this);
         attemptBleConnection();
+
+        // Gesture detector
+        gesture_detector = new GestureDetector(MainActivity.this, MainActivity.this);
+        gesture_detector.setOnDoubleTapListener(this);
     }
 
     /**
@@ -167,12 +193,36 @@ public class MainActivity extends AppCompatActivity implements BLEListener{
                 .show();
     }
 
+    private boolean m_alarm_on = true;
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         // User chose not to enable Bluetooth.
         if (requestCode == BLEUtil.REQUEST_ENABLE_BLUETOOTH
                 && !BLEUtil.isBluetoothEnabled(this)) {
             finish();
+            return;
+        }
+
+        if (requestCode == VOICE_RECOGNITION_REQUEST_CODE) {
+
+            if (resultCode == RESULT_OK) {
+                // Fill the list view with the strings the recognizer thought it
+                // could have heard
+                m_matches = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+
+                for (String match : m_matches) {
+                    Log.i("Voice", match);
+                    if (match.contains("on")) {
+                        m_alarm_on = true;
+                    } else if (match.contains("off")){
+                        m_alarm_on = false;
+                    }
+
+                }
+
+            }
+            m_is_listening.set(false);
             return;
         }
 
@@ -427,6 +477,8 @@ public class MainActivity extends AppCompatActivity implements BLEListener{
             mFaceGraphic.setId(faceId);
         }
 
+        private MeanFilter m_mean_face_center_x = new MeanFilter(5);
+
         /**
          * Update the position/characteristics of the face within the overlay.
          */
@@ -456,6 +508,8 @@ public class MainActivity extends AppCompatActivity implements BLEListener{
 
             PointF top_left = face.getPosition();
             double track_x = top_left.x + face.getWidth() / 2; ;
+
+            track_x = m_mean_face_center_x.Add((float)track_x);
 
             double constant_max_x = 420;
             double constant_min_x = 120;
@@ -499,7 +553,7 @@ public class MainActivity extends AppCompatActivity implements BLEListener{
             }
             //double degree = Math.floor((track_x *0.6 * -1.0) + 180);
 
-            mFaceGraphic.updateFace(face, degree, m_current_range_cm);
+            mFaceGraphic.updateFace(face, degree, m_current_range_cm, m_alarm_on);
 
             byte command_degree = (byte)(int)degree;
 
@@ -531,9 +585,13 @@ public class MainActivity extends AppCompatActivity implements BLEListener{
 
 
             byte command_alarm = 0;
-            if (m_current_range_cm < 50)
+            if (m_current_range_cm < 50 && m_alarm_on)
             {
                 command_alarm = 1;
+            }
+
+            if (!m_alarm_on) {
+                command_degree = 90;
             }
 
             // Come up with your own communication protocol to Arduino. Make sure that you change the
@@ -637,6 +695,9 @@ public class MainActivity extends AppCompatActivity implements BLEListener{
 
     private int m_current_range_cm = 400;
 
+    // Mean filter kind of useless the way the sensor is set up
+    private MeanFilter m_mean_range_cm = new MeanFilter(2);
+
     @Override
     public void onBleDataReceived(byte[] data) {
         // CSE590 Student TODO
@@ -647,14 +708,109 @@ public class MainActivity extends AppCompatActivity implements BLEListener{
         String debugReceivedData = String.format("Data Received: %d %d %d", data[0], data[1], data[2]);
 
         int range_cm = ((data[1] & 0xff) << 8) | (data[2] & 0xff);
-        m_current_range_cm = range_cm;
+        m_current_range_cm = (int)m_mean_range_cm.Add((float)range_cm);
 
-        Log.i(TAG + "_ble_received", debugReceivedData);
-        Log.i(TAG + "_ble_received", String.format("Range cm: %d", range_cm));
+        //Log.i(TAG + "_ble_received", debugReceivedData);
+        //Log.i(TAG + "_ble_received", String.format("Range cm: %d", range_cm));
     }
 
     @Override
     public void onBleRssiChanged(int rssi) {
         // Not needed for this app
     }
+
+
+    //
+    // Voice Recognition attempt
+    //
+
+
+    private ArrayList<String> m_matches = new ArrayList<String>();
+
+    private boolean Contains(String word) {
+        return m_matches.contains(word);
+    }
+
+    public static final int VOICE_RECOGNITION_REQUEST_CODE = 1234;
+
+    public AtomicBoolean m_is_listening = new AtomicBoolean(false);
+
+    public void startVoiceRecognitionActivity() {
+
+        if (m_is_listening.getAndSet(true)) {
+            return;
+        }
+
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(RecognizerIntent.EXTRA_PROMPT,
+                "Speech recognition demo");
+        startActivityForResult(intent, VOICE_RECOGNITION_REQUEST_CODE);
+
+    }
+
+
+///*
+    //
+    // Tap listeners - handle touch events
+    //
+
+    // http://codetheory.in/android-gesturedetector/
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        gesture_detector.onTouchEvent(event);
+
+        return super.onTouchEvent(event);
+    }
+
+    @Override
+    public boolean onSingleTapConfirmed(MotionEvent motionEvent) {
+        Log.i("Touch", "Single Tap");
+        startVoiceRecognitionActivity();
+        return false;
+    }
+
+    @Override
+    public boolean onDoubleTap(MotionEvent motionEvent) {
+        Log.i("Touch", "Double Tap");
+        return false;
+    }
+
+    // Other unused Events
+    @Override
+    public boolean onDoubleTapEvent(MotionEvent motionEvent) {
+        Log.i("Touch", "Double Tap Event");
+        return false;
+    }
+
+    @Override
+    public boolean onDown(MotionEvent motionEvent) {
+        return false;
+    }
+
+    @Override
+    public void onShowPress(MotionEvent motionEvent) {
+    }
+
+    @Override
+    public boolean onSingleTapUp(MotionEvent motionEvent) {
+        return false;
+    }
+
+    @Override
+    public boolean onScroll(MotionEvent motionEvent, MotionEvent motionEvent1, float v, float v1) {
+        return false;
+    }
+
+    @Override
+    public void onLongPress(MotionEvent motionEvent) {
+    }
+
+    @Override
+    public boolean onFling(MotionEvent motionEvent, MotionEvent motionEvent1, float v, float v1) {
+        return false;
+    }
+
+    //*/
 }

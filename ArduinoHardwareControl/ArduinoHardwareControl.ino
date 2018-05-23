@@ -87,7 +87,7 @@ void HardwareControlMoveMotorToPosition(byte degree)
 
 void HardwareControlAlarm()
 {
-    //tone(pin_piezo, NOTE_A6, 1000);
+    tone(pin_piezo, NOTE_A6, 1000);
     output_led.On();
     output_led.SetColor(color::BLUE);
     delay(1000);
