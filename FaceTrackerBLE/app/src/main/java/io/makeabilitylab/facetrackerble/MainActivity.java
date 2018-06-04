@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.PointF;
+import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.speech.RecognizerIntent;
 import android.support.design.widget.Snackbar;
@@ -105,6 +106,8 @@ public class MainActivity extends AppCompatActivity implements BLEListener
 
     private GestureDetector gesture_detector;
 
+    private SoundManager m_sound_manager;
+
     /**
      * Initializes the UI and initiates the creation of a face detector.
      */
@@ -157,6 +160,9 @@ public class MainActivity extends AppCompatActivity implements BLEListener
         // Gesture detector
         gesture_detector = new GestureDetector(MainActivity.this, MainActivity.this);
         gesture_detector.setOnDoubleTapListener(this);
+
+
+        m_sound_manager = new SoundManager(MainActivity.this);
     }
 
     /**
@@ -193,7 +199,7 @@ public class MainActivity extends AppCompatActivity implements BLEListener
                 .show();
     }
 
-    private boolean m_alarm_on = true;
+    private boolean m_is_active = true;
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -214,9 +220,9 @@ public class MainActivity extends AppCompatActivity implements BLEListener
                 for (String match : m_matches) {
                     Log.i("Voice", match);
                     if (match.contains("on")) {
-                        m_alarm_on = true;
+                        m_is_active = true;
                     } else if (match.contains("off")){
-                        m_alarm_on = false;
+                        m_is_active = false;
                     }
 
                 }
@@ -479,6 +485,8 @@ public class MainActivity extends AppCompatActivity implements BLEListener
 
         private MeanFilter m_mean_face_center_x = new MeanFilter(5);
 
+        private  MeanFilter m_mean_smile = new MeanFilter(10, 0.5f);
+
         /**
          * Update the position/characteristics of the face within the overlay.
          */
@@ -553,7 +561,7 @@ public class MainActivity extends AppCompatActivity implements BLEListener
             }
             //double degree = Math.floor((track_x *0.6 * -1.0) + 180);
 
-            mFaceGraphic.updateFace(face, degree, m_current_range_cm, m_alarm_on);
+
 
             byte command_degree = (byte)(int)degree;
 
@@ -567,30 +575,46 @@ public class MainActivity extends AppCompatActivity implements BLEListener
                 command_degree = (byte)constant_min_theta;
             }
 
+            float is_smiling_probability = face.getIsSmilingProbability();
+            if (face.getIsSmilingProbability() < 0) {
+                is_smiling_probability = 0.5f;
+            }
+
+            m_mean_smile.Add(is_smiling_probability);
+
+            mFaceGraphic.updateFace(face, degree, m_current_range_cm, m_is_active, m_mean_smile.Mean());
+
+
             String debugFaceInfo = String.format("Portrait: %b Front-Facing Camera: %b FaceId: %d Loc (x,y): (%.1f, %.1f) Size (w, h): (%.1f, %.1f) Left Eye: %.1f Right Eye: %.1f  Smile: %.1f  Track X: %.2f Degree: %.1f [%d]",
                     isPortrait,
                     mIsFrontFacing,
                     face.getId(),
                     face.getPosition().x, face.getPosition().y,
                     face.getHeight(), face.getWidth(),
-                    face.getIsLeftEyeOpenProbability(), face.getIsRightEyeOpenProbability(),
-                    face.getIsSmilingProbability(),
+                    face.getIsLeftEyeOpenProbability(),
+                    face.getIsRightEyeOpenProbability(),
+                    m_mean_smile.Mean(), //face.getIsSmilingProbability(),
                     track_x,
                     degree,
                     command_degree);
 
             Log.i(TAG + "_face_tracker", debugFaceInfo);
 
-
-
+            if (m_is_active) {
+                if (m_mean_smile.Mean() > 0.95) {
+                    m_sound_manager.PlaySmile();
+                } else if (m_mean_smile.Mean() < 0.02) {
+                    m_sound_manager.PlayFrown();
+                }
+            }
 
             byte command_alarm = 0;
-            if (m_current_range_cm < 50 && m_alarm_on)
+            if (m_current_range_cm < 50 && m_is_active)
             {
                 command_alarm = 1;
             }
 
-            if (!m_alarm_on) {
+            if (!m_is_active) {
                 command_degree = 90;
             }
 

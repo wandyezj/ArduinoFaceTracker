@@ -79,17 +79,19 @@ class FaceGraphic extends GraphicOverlay.Graphic {
     double m_degree = 0.0;
     int m_range_cm = 0;
     boolean m_alarm_on = true;
+    float m_smile_mean = 0.0f;
 
     /**
      * Updates the face instance from the detection of the most recent frame.  Invalidates the
      * relevant portions of the overlay to trigger a redraw.
      */
-    void updateFace(Face face, double degree, int range_cm, boolean alarm_on) {
+    void updateFace(Face face, double degree, int range_cm, boolean alarm_on, float smile_mean) {
         Log.i("TAG", "update face");
         mFace = face;
         m_degree = degree;
         m_range_cm = range_cm;
         m_alarm_on = alarm_on;
+        m_smile_mean = smile_mean;
         postInvalidate();
     }
 
@@ -120,6 +122,7 @@ class FaceGraphic extends GraphicOverlay.Graphic {
         canvas.drawCircle(x, y, FACE_POSITION_RADIUS, mFacePositionPaint);
         canvas.drawText("id: " + mFaceId, x + ID_X_OFFSET, y + ID_Y_OFFSET, mIdPaint);
         canvas.drawText("happiness: " + String.format("%.2f", face.getIsSmilingProbability()), x, y + ID_Y_OFFSET * 4, mIdPaint);
+        canvas.drawText("mean happiness: " + String.format("%.2f", m_smile_mean), x, y + ID_Y_OFFSET * 5, mIdPaint);
         canvas.drawText("right eye: " + String.format("%.2f", face.getIsRightEyeOpenProbability()), x - ID_X_OFFSET * 4, y - ID_Y_OFFSET * 2, mIdPaint);
         canvas.drawText("left eye: " + String.format("%.2f", face.getIsLeftEyeOpenProbability()), x + ID_X_OFFSET * 4, y - ID_Y_OFFSET * 2, mIdPaint);
 

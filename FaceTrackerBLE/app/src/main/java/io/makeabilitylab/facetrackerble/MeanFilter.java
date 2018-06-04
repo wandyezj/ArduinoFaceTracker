@@ -9,8 +9,19 @@ public class MeanFilter {
 
     private ArrayList<Float> m_values = new ArrayList<Float>();
 
+    private float m_initial_value = 0.0f;
+
     public MeanFilter(int size) {
+        init(size, 0.0f);
+    }
+
+    public MeanFilter(int size, float initial_value) {
+        init(size, initial_value);
+    }
+
+    private void init(int size, float initial_value) {
         m_size = size;
+        m_initial_value = initial_value;
     }
 
     public float Mean(){
